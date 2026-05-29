@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Committee Finder Quiz</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="quiz1">
+        <h1>Committee Finder</h1>
+        <p class="intro-tagline">Answer a few questions to find your best committee match.</p>
+        <div class="question question-name">
+            <label for="a1" class="field-label">What is your name?</label>
+            <p class="field-hint">We'll greet you by name on your results screen.</p>
+            <div class="input-wrap">
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M20 21a8 8 0 1 0-16 0"/>
+                    <circle cx="12" cy="8" r="4"/>
+                </svg>
+                <input type="text" id="a1" name="name" autocomplete="name" placeholder="e.g. Alex" autofocus>
+            </div>
+            <p class="name-preview" id="name-preview" aria-live="polite"></p>
+        </div>
+        <div class="question">
+            <label for="a2" class="field-label">What is your email?</label>
+            <div class="input-wrap">
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <path d="m2 7 10 7 10-7"/>
+                </svg>
+                <input type="email" id="a2" name="email" autocomplete="email" placeholder="you@example.com">
+            </div>
+        </div>
+        <div class="question">
+            <label for="a3" class="field-label">What is your chapter?</label>
+            <select id="a3" name="chapter">
+                <option value="calumet">Calumet</option>
+                <option value="checaugau">Checaugau</option>
+                <option value="five-creeks">Five Creeks</option>
+                <option value="iron-horse">Iron Horse</option>
+                <option value="portage-creek">Portage Creek</option>
+                <option value="prairie-dunes">Prairie Dunes</option>
+                <option value="tall-grass">Tall Grass</option>
+                <option value="thunderbird">Thunderbird</option>
+                <option value="trailblazer">Trailblazer</option>
+                <option value="tri-star">Tri-Star</option>
+            </select>
+        </div>
+        <p id="err">Please fill in all fields</p>
+        <button id="begin">Begin</button>
+    </div>
+    <div id="quiz2"></div>
+    <script src="questions.js"></script>
+    <script src="committees.js"></script>
+    <script>
+        const nameInput = document.getElementById("a1");
+        const namePreview = document.getElementById("name-preview");
+
+        nameInput.addEventListener("input", () => {
+            const name = nameInput.value.trim();
+            if (name) {
+                const first = name.split(/\s+/)[0];
+                namePreview.textContent = `Hey, ${first}! Ready to find your committee?`;
+                namePreview.classList.add("visible");
+                namePreview.hidden = false;
+            } else {
+                namePreview.classList.remove("visible");
+                namePreview.hidden = true;
+            }
+        });
+
+        document.getElementById("begin").onclick = () => {
+            if (!a1.value || !a2.value || !a3.value) return (err.style.display = "block");
+            quiz1.style.display = "none";
+            quiz2.style.display = "block";
+
+            const total = questions.length;
+            let current = 0;
+            const answers = {};
+
+            quiz2.innerHTML = `
+                <div class="progress-wrap">
+                    <span class="progress-label" id="progress-label">1 / ${total}</span>
+                    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+                </div>
+                <div id="question-area"></div>
+                <button type="button" id="quiz-next">Next</button>`;
+
+            const progressLabel = document.getElementById("progress-label");
+            const progressFill = document.getElementById("progress-fill");
+            const questionArea = document.getElementById("question-area");
+            const nextBtn = document.getElementById("quiz-next");
+
+            const showQuestion = () => {
+                const q = questions[current];
+                progressLabel.textContent = `${current + 1} / ${total}`;
+                progressFill.style.width = `${((current + 1) / total) * 100}%`;
+
+                questionArea.innerHTML = `<p>${q.question}</p>` +
+                    q.results.map((r, i) =>
+                        `<label><input type="radio" name="q" value="${i}"${answers[current] === String(i) ? " checked" : ""}> ${r.answer}</label>`
+                    ).join("");
+
+                nextBtn.textContent = current === total - 1 ? "Submit" : "Next";
+            };
+
+            const scoreAndShowResults = () => {
+                const userSkills = {};
+                for (let i = 0; i < questions.length; i++) {
+                    const result = questions[i].results[Number(answers[i])];
+                    for (const skill of result.addSkills)
+                        userSkills[skill] = (userSkills[skill] || 0) + 1;
+                }
+
+                let best = null, bestSub = null, top = -1;
+                for (const c of committees)
+                    for (const s of c.committees) {
+                        const score = s.skills.reduce((n, sk) => n + (userSkills[sk] || 0), 0);
+                        if (score > top) { top = score; best = c; bestSub = s; }
+                    }
+
+                const matchingSkills = bestSub.skills.filter(s => userSkills[s]);
+                const userName = a1.value.trim();
+                const confettiColors = ["#fff59d", "#ff8a80", "#80cbc4", "#ce93d8", "#90caf9", "#fff"];
+
+                quiz2.classList.add("results-view");
+                quiz2.innerHTML = `
+                    <div class="results-hero" id="results-hero">
+                        <span class="results-badge">Your match</span>
+                        <h1>Recommended committee</h1>
+                        <h2>${best.name}</h2>
+                        <h3>${bestSub.name}</h3>
+                        <div class="results-score-ring">
+                            <span class="results-score-value">${top}</span>
+                            <span class="results-score-label">Match score</span>
+                        </div>
+                    </div>
+                    <div class="results-card">
+                        <h4>Why you fit</h4>
+                        <ul class="results-skills">${matchingSkills.length
+                            ? matchingSkills.map((s, i) =>
+                                `<li style="animation-delay:${0.7 + i * 0.06}s">${s}</li>`
+                            ).join("")
+                            : "<li style=\"animation-delay:0.7s\">General committee fit</li>"
+                        }</ul>
+                    </div>
+                    ${userName ? `<p class="results-greeting">Nice work, ${userName}! This committee lines up with how you answered.</p>` : ""}`;
+
+                const hero = document.getElementById("results-hero");
+                for (let i = 0; i < 24; i++) {
+                    const piece = document.createElement("span");
+                    piece.className = "confetti";
+                    piece.style.left = `${5 + Math.random() * 90}%`;
+                    piece.style.top = `${-5 + Math.random() * 15}%`;
+                    piece.style.background = confettiColors[i % confettiColors.length];
+                    piece.style.width = `${5 + Math.random() * 6}px`;
+                    piece.style.height = piece.style.width;
+                    piece.style.animationDelay = `${Math.random() * 0.4}s`;
+                    piece.style.animationDuration = `${1.8 + Math.random() * 1}s`;
+                    hero.appendChild(piece);
+                }
+            };
+
+            nextBtn.onclick = () => {
+                const sel = questionArea.querySelector('input[name="q"]:checked');
+                if (!sel) return alert("Please select an answer.");
+                answers[current] = sel.value;
+
+                if (current < total - 1) {
+                    current++;
+                    showQuestion();
+                } else {
+                    scoreAndShowResults();
+                }
+            };
+
+            showQuestion();
+        };
+    </script>
+</body>
+
+</html>
